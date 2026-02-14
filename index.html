@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>I Love You</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lavishly+Yours&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Shantell+Sans:ital,wght@0,300..800;1,300..800&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            background-color: #d1c4e9;
+            overflow: hidden;
+            touch-action: none;
+            cursor: pointer;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .flower-bg {
+            position: absolute;
+            width: 150px;
+            height: 150px;
+            opacity: 0.15;
+            pointer-events: none;
+            z-index: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        const flowers = [
+            'assets/flower-1.svg',
+            'assets/flower-2.svg',
+            'assets/flower1-3.svg',
+            'assets/flower1-4.svg'
+        ];
+        const flowerInstances = 3;
+        const minDistance = 150;
+        const positions = [];
+        function getRandomPosition() {
+            return {
+                x: Math.random() * (window.innerWidth - 64),
+                y: Math.random() * (window.innerHeight - 64)
+            };
+        }
+        function isFarEnough(pos) {
+            return positions.every(p => {
+                const dx = p.x - pos.x;
+                const dy = p.y - pos.y;
+                return Math.sqrt(dx * dx + dy * dy) > minDistance;
+            });
+        }
+        flowers.forEach(src => {
+            for (let i = 0; i < flowerInstances; i++) {
+                let pos;
+                let attempts = 0;
+                do {
+                    pos = getRandomPosition();
+                    attempts++;
+                } while (!isFarEnough(pos) && attempts < 50);
+                positions.push(pos);
+                const img = document.createElement('img');
+                img.src = src;
+                img.style.position = 'absolute';
+                img.style.width = '64px';
+                img.style.height = '64px';
+                img.style.opacity = 0.15;
+                img.style.pointerEvents = 'none';
+                img.style.zIndex = -1;
+                img.style.top = `${pos.y}px`;
+                img.style.left = `${pos.x}px`;
+                document.body.appendChild(img);
+            }
+        });
+    </script>
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.132.2';
+        import { SVGLoader } from 'https://cdn.skypack.dev/three@0.132.2/examples/jsm/loaders/SVGLoader.js';
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = 7;
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.localClippingEnabled = true;
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+        const mainGroup = new THREE.Group();
+        let bottomPlane;
+        let topPlane;
+        scene.add(mainGroup);
+        let hugGroup;
+        const svgLoader = new SVGLoader();
+        svgLoader.load('assets/hug.svg', function (data) {
+            hugGroup = new THREE.Group();
+            data.paths.forEach(path => {
+                const shapes = path.toShapes(true);
+                shapes.forEach(shape => {
+                    const mesh = new THREE.Mesh(
+                        new THREE.ShapeGeometry(shape),
+                        new THREE.MeshBasicMaterial({
+                            color: 0x000000,
+                            side: THREE.DoubleSide,
+                            transparent: true
+                        })
+                    );
+                    mesh.renderOrder = 999;
+                    hugGroup.add(mesh);
+                });
+            });
+            hugGroup.scale.set(0.03, 0.03, 0.03);
+            hugGroup.rotation.z = Math.PI;
+            hugGroup.position.set(3, 6, 0.1);
+            hugGroup.visible = false;
+            mainGroup.add(hugGroup);
+        });
+        function getCardScale() {
+            const aspect = window.innerWidth / window.innerHeight;
+            if (aspect < 1) return Math.min(window.innerWidth / 500, 0.8);
+            return 1;
+        }
+        mainGroup.scale.setScalar(getCardScale());
+        const backPanelFrame = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.5, 3.5),
+            new THREE.MeshBasicMaterial({ color: 0xff4757 })
+        );
+        backPanelFrame.position.z = -0.02;
+        mainGroup.add(backPanelFrame);
+        const backPanelPaper = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.2, 3.3),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        backPanelPaper.position.y = 0.1;
+        backPanelPaper.position.z = -0.01;
+        mainGroup.add(backPanelPaper);
+        async function createBottomText() {
+            await document.fonts.load('600 90px "Shantell Sans"');
+            const bottomCanvas = document.createElement('canvas');
+            bottomCanvas.width = 1024;
+            bottomCanvas.height = 1024;
+            const bottomCtx = bottomCanvas.getContext('2d');
+            bottomCtx.clearRect(0, 0, 1024, 1024);
+            bottomCtx.textAlign = "left";
+            bottomCtx.textBaseline = "middle";
+            bottomCtx.font = '600 120px "Shantell Sans"';
+            const centerX = 512;
+            const letterSpacing = 15;
+            const topText = "THIIIIIS";
+            const bottomText = "MUCH";
+            const heart = "❤";
+            function measureSpacedText(ctx, text, spacing) {
+                let width = 0;
+                for (let i = 0; i < text.length; i++) {
+                    width += ctx.measureText(text[i]).width;
+                    if (i < text.length - 1) width += spacing;
+                }
+                return width;
+            }
+            function drawSpacedText(ctx, text, x, y, spacing) {
+                for (let i = 0; i < text.length; i++) {
+                    ctx.fillText(text[i], x, y);
+                    x += ctx.measureText(text[i]).width + spacing;
+                }
+            }
+            const topY = 620;
+            const bottomY = 760;
+            const topWidth = measureSpacedText(bottomCtx, topText, letterSpacing);
+            const topStartX = centerX - topWidth / 2;
+            bottomCtx.fillStyle = "black";
+            drawSpacedText(bottomCtx, topText, topStartX, topY, letterSpacing);
+            const muchWidth = measureSpacedText(bottomCtx, bottomText, letterSpacing);
+            const heartWidth = bottomCtx.measureText(heart).width;
+            const totalBottomWidth = muchWidth + 30 + heartWidth;
+            const bottomStartX = centerX - totalBottomWidth / 2;
+            bottomCtx.fillStyle = "black";
+            drawSpacedText(bottomCtx, bottomText, bottomStartX, bottomY, letterSpacing);
+            bottomCtx.fillStyle = "#ff4757";
+            bottomCtx.fillText(heart, bottomStartX + muchWidth + 30, bottomY);
+            const bottomTexture = new THREE.CanvasTexture(bottomCanvas);
+            bottomTexture.needsUpdate = true; // 🔥 önemli
+            bottomPlane = new THREE.Mesh(
+                new THREE.PlaneGeometry(3, 3),
+                new THREE.MeshBasicMaterial({
+                    map: bottomTexture,
+                    transparent: true,
+                    opacity: 0
+                })
+            );
+            bottomPlane.position.y = -0.35;
+            bottomPlane.position.z = 0.05;
+            mainGroup.add(bottomPlane);
+        }
+        createBottomText();
+        const coverPivot = new THREE.Group();
+        coverPivot.position.y = 1.75;
+        mainGroup.add(coverPivot);
+        const coverContent = new THREE.Group();
+        coverContent.position.y = -1.75;
+        coverPivot.add(coverContent);
+        const square = new THREE.Mesh(
+            new THREE.PlaneGeometry(3.5, 3.5),
+            new THREE.MeshBasicMaterial({ color: 0xff4757, side: THREE.DoubleSide })
+        );
+        coverContent.add(square);
+        const paperHeight = 4.3;
+        const paperGeometry = new THREE.PlaneGeometry(3.2, paperHeight);
+        paperGeometry.translate(0, paperHeight / 6.5, 0);
+
+        const coverInnerPaper = new THREE.Mesh(
+            paperGeometry,
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        coverInnerPaper.position.y = -0.1;
+        coverInnerPaper.position.z = -0.01;
+        coverInnerPaper.rotation.y = Math.PI;
+        coverContent.add(coverInnerPaper);
+        const topCanvas = document.createElement('canvas');
+        topCanvas.width = 1024;
+        topCanvas.height = 1024;
+        const topCtx = topCanvas.getContext('2d');
+
+        topCtx.textAlign = "center";
+        topCtx.textBaseline = "middle";
+        topCtx.fillStyle = "black";
+        topCtx.font = '600 140px "Shantell Sans"';
+        topCtx.translate(512, 512);
+        topCtx.rotate(Math.PI);
+        topCtx.fillText("I MISS YOU", 0, -450);
+        const topTexture = new THREE.CanvasTexture(topCanvas);
+        topPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(3, 3),
+            new THREE.MeshBasicMaterial({
+                map: topTexture,
+                transparent: true,
+                opacity: 0,
+                side: THREE.DoubleSide
+            })
+        );
+        topPlane.position.set(0, 0.8, 0.02);
+        coverInnerPaper.add(topPlane);
+        function createOuterCutPlane(width, height, cutSize, isLeft) {
+            const shape = new THREE.Shape();
+            const w = width / 1.7;
+            const h = height / 2.5;
+            const c = cutSize;
+            if (isLeft) {
+                shape.moveTo(-w + c, -h);
+                shape.lineTo(w, -h);
+                shape.lineTo(w, h);
+                shape.lineTo(-w + c, h);
+                shape.lineTo(-w, h - c);
+                shape.lineTo(-w, -h + c);
+            } else {
+                shape.moveTo(-w, -h);
+                shape.lineTo(w - c, -h);
+                shape.lineTo(w, -h + c);
+                shape.lineTo(w, h - c);
+                shape.lineTo(w - c, h);
+                shape.lineTo(-w, h);
+            }
+            shape.closePath();
+            return new THREE.ShapeGeometry(shape);
+        }
+        function createHandCutPlane(width, height, cutSize, isLeft) {
+            const shape = new THREE.Shape();
+            const w = width / 2;
+            const h = height / 2;
+            const c = cutSize;
+            if (isLeft) {
+                shape.moveTo(-w + c, -h);
+                shape.lineTo(w, -h);
+                shape.lineTo(w, h);
+                shape.lineTo(-w + c, h);
+                shape.lineTo(-w, h - c);
+                shape.lineTo(-w, -h + c);
+            } else {
+                shape.moveTo(-w, -h);
+                shape.lineTo(w - c, -h);
+                shape.lineTo(w, -h + c);
+                shape.lineTo(w, h - c);
+                shape.lineTo(w - c, h);
+                shape.lineTo(-w, h);
+            }
+            shape.closePath();
+            return new THREE.ShapeGeometry(shape);
+        }
+        const zarfPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 2);
+        const armMaterial = new THREE.MeshBasicMaterial({
+            color: 0xffffff,
+            side: THREE.DoubleSide,
+            depthWrite: false,
+            clippingPlanes: [zarfPlane],
+        });
+        const sidePaperGroup = new THREE.Group();
+        coverInnerPaper.add(sidePaperGroup);
+        const cutSize = 0.3;
+        const leftBasePivot = new THREE.Group();
+        leftBasePivot.position.set(0, 2, 0.03);
+        sidePaperGroup.add(leftBasePivot);
+        const leftSegment1 = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.8, 1.2),
+            armMaterial
+        );
+        leftSegment1.position.x = -0.9;
+        leftBasePivot.add(leftSegment1);
+        const leftElbowPivot = new THREE.Group();
+        leftElbowPivot.position.x = -1.8;
+        leftBasePivot.add(leftElbowPivot);
+        const leftSegment2 = new THREE.Mesh(
+            createHandCutPlane(1.8, 1.2, cutSize, true),
+            armMaterial
+        );
+        leftSegment2.position.x = -0.9;
+        leftElbowPivot.add(leftSegment2);
+        const rightBasePivot = new THREE.Group();
+        rightBasePivot.position.set(0, 2, 0.03);
+        sidePaperGroup.add(rightBasePivot);
+        const rightSegment1 = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.8, 1.2),
+            armMaterial
+        );
+        rightSegment1.position.x = 0.9;
+        rightBasePivot.add(rightSegment1);
+        const rightElbowPivot = new THREE.Group();
+        rightElbowPivot.position.x = 1.8;
+        rightBasePivot.add(rightElbowPivot);
+        const rightSegment2 = new THREE.Mesh(
+            createHandCutPlane(1.8, 1.2, cutSize, false),
+            armMaterial
+        );
+        rightSegment2.position.x = 0.9;
+        rightElbowPivot.add(rightSegment2);
+        const heartGroup = new THREE.Group();
+        heartGroup.position.y = 0.3;
+        coverContent.add(heartGroup);
+        const heartShape = new THREE.Shape();
+        heartShape.moveTo(0, -0.8);
+        heartShape.bezierCurveTo(-1.2, 0.5, -0.8, 1.5, 0, 0.7);
+        heartShape.bezierCurveTo(0.8, 1.5, 1.2, 0.5, 0, -0.8);
+        const heart = new THREE.Mesh(
+            new THREE.ShapeGeometry(heartShape),
+            new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        heart.position.z = 0.01;
+        heartGroup.add(heart);
+        const textCanvas = document.createElement('canvas');
+        textCanvas.width = 1024;
+        textCanvas.height = 1024;
+        const ctx = textCanvas.getContext('2d');
+        const textTexture = new THREE.CanvasTexture(textCanvas);
+        const textPlane = new THREE.Mesh(
+            new THREE.PlaneGeometry(3, 3),
+            new THREE.MeshBasicMaterial({ map: textTexture, transparent: true })
+        );
+        textPlane.position.z = 0.03;
+        heartGroup.add(textPlane);
+        function drawCanvas() {
+            ctx.clearRect(0, 0, 1024, 1024);
+            ctx.save();
+            ctx.translate(512, 550);
+            ctx.scale(345, -250);
+            ctx.beginPath();
+            ctx.moveTo(0, -0.8);
+            ctx.bezierCurveTo(-1.2, 1.9, -0.5, 1.7, 0, 0.8);
+            ctx.bezierCurveTo(0.9, 2.4, 0.8, 0.2, 0, -0.8);
+            ctx.setLineDash([0.09, 0.1]);
+            ctx.lineWidth = 0.04;
+            ctx.strokeStyle = 'black';
+            ctx.lineJoin = 'round';
+            ctx.stroke();
+            ctx.restore();
+            ctx.fillStyle = 'black';
+            ctx.font = '190px "Lavishly Yours"';
+            ctx.textAlign = 'center';
+            ctx.fillText('open', 515, 450);
+            ctx.fillStyle = '#ff4757';
+            ctx.font = '90px Arial';
+            ctx.fillText('❤', 512, 572);
+            textTexture.needsUpdate = true;
+        }
+        document.fonts.load('10pt "Lavishly Yours"').then(drawCanvas);
+        let isOpen = false;
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        function handleInteraction(event) {
+            const x = event.clientX;
+            const y = event.clientY;
+            mouse.x = (x / window.innerWidth) * 2 - 1;
+            mouse.y = -(y / window.innerHeight) * 2 + 1;
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObject(square);
+            if (intersects.length > 0) isOpen = !isOpen;
+        }
+        window.addEventListener('pointerdown', handleInteraction);
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = Date.now() * 0.001;
+            const targetRotation = isOpen ? -Math.PI : 0;
+            coverPivot.rotation.x = THREE.MathUtils.lerp(coverPivot.rotation.x, targetRotation, 0.08);
+            const targetY = isOpen ? -1.5 : 0;
+            mainGroup.position.y = THREE.MathUtils.lerp(
+                mainGroup.position.y,
+                targetY + Math.sin(time * 2) * 0.1,
+                0.08
+            );
+            mainGroup.rotation.z = Math.sin(time * 1.5) * 0.03;
+            if (bottomPlane) {
+                bottomPlane.material.opacity = THREE.MathUtils.lerp(
+                    bottomPlane.material.opacity,
+                    isOpen ? 1 : 0,
+                    0.08
+                );
+            }
+            if (topPlane) {
+                topPlane.material.opacity = THREE.MathUtils.lerp(
+                    topPlane.material.opacity,
+                    isOpen ? 1 : 0,
+                    0.08
+                );
+            }
+            if (leftBasePivot && rightBasePivot) {
+                const openProgress = THREE.MathUtils.clamp(
+                    -coverPivot.rotation.x / Math.PI,
+                    0,
+                    1
+                );
+                const foldProgress = 1 - openProgress;
+                const shoulderAngle = foldProgress * (Math.PI / 2.5);
+                const elbowAngle = foldProgress * (Math.PI / 1.5);
+                leftBasePivot.rotation.y = THREE.MathUtils.lerp(
+                    leftBasePivot.rotation.y,
+                    shoulderAngle,
+                    0.08
+                );
+                rightBasePivot.rotation.y = THREE.MathUtils.lerp(
+                    rightBasePivot.rotation.y,
+                    -shoulderAngle,
+                    0.08
+                );
+                leftElbowPivot.rotation.y = THREE.MathUtils.lerp(
+                    leftElbowPivot.rotation.y,
+                    shoulderAngle + elbowAngle,
+                    0.08
+                );
+                rightElbowPivot.rotation.y = THREE.MathUtils.lerp(
+                    rightElbowPivot.rotation.y,
+                    -shoulderAngle - elbowAngle,
+                    0.08
+                );
+                const extendDistance = 0.6;
+                leftSegment1.position.x = THREE.MathUtils.lerp(
+                    leftSegment1.position.x,
+                    -0.9 - (foldProgress * extendDistance),
+                    0.08
+                );
+                leftSegment2.position.x = THREE.MathUtils.lerp(
+                    leftSegment2.position.x,
+                    -0.9 - (foldProgress * extendDistance),
+                    0.08
+                );
+                rightSegment1.position.x = THREE.MathUtils.lerp(
+                    rightSegment1.position.x,
+                    0.9 + (foldProgress * extendDistance),
+                    0.08
+                );
+                rightSegment2.position.x = THREE.MathUtils.lerp(
+                    rightSegment2.position.x,
+                    0.9 + (foldProgress * extendDistance),
+                    0.08
+                );
+                const shouldBeVisible = foldProgress < 0.8;
+                leftSegment1.visible = shouldBeVisible;
+                leftSegment2.visible = shouldBeVisible;
+                rightSegment1.visible = shouldBeVisible;
+                rightSegment2.visible = shouldBeVisible;
+            }
+            let hugVisibleTimeout = null;
+            if (hugGroup) {
+                if (isOpen) {
+                    if (!hugGroup.visible && !hugVisibleTimeout) {
+                        hugVisibleTimeout = setTimeout(() => {
+                            hugGroup.visible = true;
+                            hugVisibleTimeout = null;
+                        }, 600);
+                    }
+                } else {
+                    hugGroup.visible = false;
+                    if (hugVisibleTimeout) {
+                        clearTimeout(hugVisibleTimeout);
+                        hugVisibleTimeout = null;
+                    }
+                }
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            mainGroup.scale.setScalar(getCardScale());
+        });
+    </script>
+</body>
+
+</html>
